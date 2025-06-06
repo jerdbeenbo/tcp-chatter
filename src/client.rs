@@ -1,12 +1,27 @@
-use core::error;
-use std::io::Write;
-use std::sync::*;
+/*
+
+    Add a UI with winnit
+    Save messages in a database
+
+    Or use Tarui
+
+    egui-winit-wgpu template
+    egui examples - tons of chat-like demos
+
+
+
+
+    for testing client without server.rs running
+    run a python one-line server
+    python -c "import socket; s=socket.socket(); s.bind(('127.0.0.1',80)); s.listen(1); c,a=s.accept(); [print(c.recv(1024).decode()) or c.send(b'echo: '+c.recv(1024)) for _ in iter(int,1)]"
+*/
+
+
+use std::io::{BufRead, BufReader, Read, Write};
+use std::process::exit;
 use std::{
-    error::{self, Error},
-    fs::read,
     io::{self, stdin},
     net::TcpStream,
-    process::exit,
     sync::mpsc::{channel, Receiver, Sender},
     thread,
 };
@@ -23,15 +38,13 @@ fn handle_error(err: io::Error) {
 
 ///Sends the message that was collected from the command line to the server
 fn send_message(msg: String, tcp: &mut TcpStream) -> std::io::Result<()> {
-    
     //Send the msg as bytes
-    tcp.write_all(msg.as_bytes())?;
-
+    tcp.write_all((msg + "\n").as_bytes())?;
 
     Ok(())
 }
 
-///Handles connection to the server, and listens for msg from server
+///Handles connection to the server, and listen for msg from server
 fn handle_connecting(reciever: Receiver<String>) {
     let stream = TcpStream::connect("127.0.0.1:80");
 
@@ -43,25 +56,36 @@ fn handle_connecting(reciever: Receiver<String>) {
         Ok(_) => {
             //It is safe to unwrap value
             tcp = stream.unwrap();
-            listen(&mut tcp, reciever);
+
+            //create thread for handling listening from server now that connection is confirmed
+            match tcp.try_clone() {
+                Ok(mut cloned) => {
+                    thread::spawn(move || {
+                        //listen for messages from the server
+                        listen_server(&mut cloned); //only need to read, no writing to the stream
+                    });
+                }
+                Err(_) => println!("Could not clone TCP"),
+            }
+
+            //listen for input from the user (to send to the server)
+            listen_for_input(&mut tcp, reciever);
         }
         //connection was unsuccessful
         Err(val) => handle_error(val),
     }
 }
 
-fn listen(tcp: &mut TcpStream, reciever: Receiver<String>) {
-    //listen for user input
+fn listen_for_input(tcp: &mut TcpStream, reciever: Receiver<String>) {
+    //listen_for_input for user input
     while true {
         let msg = reciever.recv();
 
         match msg {
             //msg is all good to send to the server
-            Ok(val) => {
-                match send_message(val, tcp) {
-                    Ok(_) => println!("Message Sent"),
-                    Err(val) => println!("Message failed to send: {}", val),
-                }
+            Ok(val) => match send_message(val, tcp) {
+                Ok(_) => println!("Message Sent"),
+                Err(val) => println!("Message failed to send: {}", val),
             },
             //msg is not all good to send to the server
             Err(val) => println!("{}", val),
@@ -71,7 +95,7 @@ fn listen(tcp: &mut TcpStream, reciever: Receiver<String>) {
 
 ///Reads input from the command line
 fn read_input(sender: Sender<String>) {
-    println!("λ ");
+    print!("λ ");
     let mut input: String = String::new();
 
     stdin().read_line(&mut input).expect("Unable to read input");
@@ -82,15 +106,46 @@ fn read_input(sender: Sender<String>) {
     sender.send(String::from(input));
 }
 
-///Spawns a thread to listen for messages from the server
-///Listens for user input to send messages to the server on main thread
+fn listen_server(tcp: &mut TcpStream) {
+    
+    let mut reader = BufReader::new(tcp);
+    
+    while true {
+        /*
+           tcp.read() or BufReader::new(tcp).read_line()
+           How to continuously read incoming messages
+           Message parsing from byte streams
+
+           Thread communication:
+           How does listen_server() display received messages without interfering with the input prompt?
+        */
+        let mut line = String::new();
+        match reader.read_line(&mut line) {
+            Ok(bytes) => {
+                //bytes == 0 means connection closed
+                if bytes == 0 {
+                    println!("Server disconnected");
+                    break;
+                }
+                else {
+                    //got data, process the bytes
+                    println!("{}", line.trim());
+                }
+            },
+            Err(_) => println!("An error occured"),
+        }
+    }
+}
+
+///Spawns a thread to listen_for_input for messages from the server
+///listen_for_inputs for user input to send messages to the server on main thread
 fn main() {
-    //connecting to the server and listening for messages on a seperate thread
+    //connecting to the server and listen_for_inputing for messages on a seperate thread
     let (sender, reciever) = channel::<String>();
+
     thread::spawn(move || {
         handle_connecting(reciever);
     });
-
 
     while true {
         read_input(sender.clone());
