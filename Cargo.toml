@@ -1,0 +1,19 @@
+[package]
+name = "tcp-chatter"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "tcp_messenger"
+path = "src/lib.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
+
+[[bin]]
+name = "server"
+path = "src/server.rs"
+
+[dependencies]
+
