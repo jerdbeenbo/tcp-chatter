@@ -1,21 +1,30 @@
-use std::{io::{self, stdin}, net::TcpStream, process::exit};
+use core::error;
+use std::{error::{self, Error}, fs::read, io::{self, stdin}, net::TcpStream, process::exit, thread};
+use std::sync::Mutex;
 
-fn handle_connecting() {
+fn handle_connecting() -> Result<TcpStream, error> {
+    
+    let k = TcpStream::connect("127.0.0.1:80");
+}
 
+
+
+fn read_input() {
+    println!("λ ");
+    let mut input: String = String::new();
+
+    stdin().read_line(&mut input).expect("Unable to read input");
 }
 
 
 fn main () {
     
-    println!("1. Connect\n2.Exit");
-    let mut input: String = String::new();
+    //connecting to the server and listening for messages on a seperate thread
+    thread::spawn(|| {
+        handle_connecting();
+    });
 
-    stdin().read_line(&mut input).expect("Unable to read input");
-
-    match input {
-        "1" => handle_connecting(),
-        "2" => exit(0),
-        
+    while true {
+        read_input();
     }
-
 }

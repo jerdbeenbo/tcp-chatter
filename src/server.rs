@@ -4,6 +4,7 @@
 */
 
 use std::net::{TcpListener, TcpStream};
+use std::sync::Mutex;
 
 ///Handles a client connection to the mutual exhange
 ///Connects a user to the database
