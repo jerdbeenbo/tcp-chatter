@@ -3,10 +3,11 @@
     Add a UI with winnit
     Save messages in a database
 
-    Or use Tarui
-
     egui-winit-wgpu template
     egui examples - tons of chat-like demos
+
+
+    could also use this and convert to web assembly to make a web-based chatter, or to send commands up somewhere
 
 
 
