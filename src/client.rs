@@ -1,20 +1,13 @@
 /*
-
+TODO:
     Add a UI with winnit
     Save messages in a database
 
     egui-winit-wgpu template
-    egui examples - tons of chat-like demos
+    egui examples chat
 
 
     could also use this and convert to web assembly to make a web-based chatter, or to send commands up somewhere
-
-
-
-
-    for testing client without server.rs running
-    run a python one-line server
-    python -c "import socket; s=socket.socket(); s.bind(('127.0.0.1',80)); s.listen(1); c,a=s.accept(); [print(c.recv(1024).decode()) or c.send(b'echo: '+c.recv(1024)) for _ in iter(int,1)]"
 */
 
 
@@ -112,14 +105,6 @@ fn listen_server(tcp: &mut TcpStream) {
     let mut reader = BufReader::new(tcp);
     
     while true {
-        /*
-           tcp.read() or BufReader::new(tcp).read_line()
-           How to continuously read incoming messages
-           Message parsing from byte streams
-
-           Thread communication:
-           How does listen_server() display received messages without interfering with the input prompt?
-        */
         let mut line = String::new();
         match reader.read_line(&mut line) {
             Ok(bytes) => {

@@ -1,10 +1,8 @@
 /*
     A messenger service that operates over a TCP connection
-    Stores every message in a database cause I need more database experience
+    Stores every message in a database cause I need more database experience TODO
 
     Direct message from server to the client
-
-    Store message in database
 */
 
 use std::io::{BufRead, BufReader};
@@ -21,14 +19,6 @@ fn handle_connection(stream: TcpStream) {
     let mut reader = BufReader::new(stream);
     
     while true {
-        /*
-           tcp.read() or BufReader::new(tcp).read_line()
-           How to continuously read incoming messages
-           Message parsing from byte streams
-
-           Thread communication:
-           How does listen_server() display received messages without interfering with the input prompt?
-        */
         let mut line = String::new();
         match reader.read_line(&mut line) {
             Ok(bytes) => {
