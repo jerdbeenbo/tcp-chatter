@@ -7,7 +7,6 @@
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
-use std::process::exit;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
@@ -36,6 +35,7 @@ fn handle_connection(mut stream: TcpStream, clients_clone: Arc<Mutex<Vec<TcpStre
                     println!("Message from {:?}.\nMessage: {}", stream_clone, line.trim());
 
                     //store the data in a database
+                    //TODO
 
                     //relay the message to the other client
                     //lock the contact list
