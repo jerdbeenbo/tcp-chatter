@@ -118,7 +118,10 @@ fn listen_server(tcp: &mut TcpStream) {
                     println!("{}", line.trim());
                 }
             },
-            Err(_) => println!("An error occured"),
+            Err(_) => {
+                println!("Server offline");
+                break;
+            },
         }
     }
 }
