@@ -11,8 +11,7 @@ TODO:
 */
 
 
-use std::io::{BufRead, BufReader, Read, Write};
-use std::process::exit;
+use std::io::{BufRead, BufReader, Write};
 use std::{
     io::{self, stdin},
     net::TcpStream,

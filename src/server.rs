@@ -5,7 +5,6 @@
     Direct message from server to the client
 */
 
-use rusqlite::fallible_iterator::Unwrap;
 use rusqlite::{Connection, Result};
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
