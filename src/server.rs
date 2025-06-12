@@ -5,6 +5,8 @@
     Direct message from server to the client
 */
 
+use rusqlite::fallible_iterator::Unwrap;
+use rusqlite::{Connection, Result};
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
@@ -12,7 +14,7 @@ use std::thread;
 
 ///Handles a client connection to the mutual exhange
 ///Connects a user to the database
-fn handle_connection(mut stream: TcpStream, clients_clone: Arc<Mutex<Vec<TcpStream>>>) {
+fn handle_connection(mut stream: TcpStream, clients_clone: Arc<Mutex<Vec<TcpStream>>>, conn: Arc<Mutex<Connection>>) {
     println!("Client connected on: {:?}", stream);
 
     let stream_clone = stream.try_clone(); //for printing
@@ -35,7 +37,20 @@ fn handle_connection(mut stream: TcpStream, clients_clone: Arc<Mutex<Vec<TcpStre
                     println!("Message from {:?}.\nMessage: {}", stream_clone, line.trim());
 
                     //store the data in a database
-                    //TODO
+                    let db_conn = conn.lock().unwrap();
+                    let timestamp = chrono::Utc::now();
+                    match store_message(
+                        &db_conn,
+                        &peer_addr.to_string(),
+                        line.trim(),
+                        timestamp,
+                    ) {
+                        Ok(_) => {
+                            //store message
+                            println!("Message stored");
+                        }
+                        Err(e) => println!("{}", e),
+                    }
 
                     //relay the message to the other client
                     //lock the contact list
@@ -77,7 +92,33 @@ fn handle_connection(mut stream: TcpStream, clients_clone: Arc<Mutex<Vec<TcpStre
     }
 }
 
+fn store_message(conn: &Connection, sender: &str, content: &str, timestamp: chrono::DateTime<chrono::Utc>) -> Result<()> {
+
+    //attempt to store the message in the table
+    conn.execute("INSERT INTO messages (sender, content, timestamp) VALUES (?1, ?2, ?3)", (sender, content, timestamp.to_string()))?;
+
+    Ok(())
+}
+
+fn handle_db() -> Result<Connection, rusqlite::Error> {
+    let conn: Connection = Connection::open("chatlog.db")?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY,
+            sender TEXT NOT NULL,
+            content TEXT NOT NULL,
+            timestamp TEXT NOT NULL 
+        )",
+        [],
+    )?;
+
+    Ok(conn)       //Return the database connection
+}
+
 fn main() -> std::io::Result<()> {
+    //check if database needs to be initialised
+    let conn: Arc<Mutex<Connection>> = Arc::new(Mutex::new(handle_db().unwrap()));
+
     let listener = TcpListener::bind("127.0.0.1:80")?;
 
     let clients: Arc<Mutex<Vec<TcpStream>>> = Arc::new(Mutex::new(Vec::new()));
@@ -89,8 +130,10 @@ fn main() -> std::io::Result<()> {
                 clients.lock().unwrap().push(stream.try_clone()?);
                 //clone contacts list
                 let clients_clone = Arc::clone(&clients);
+                //clone db connection
+                let conn_clone = Arc::clone(&conn);
                 thread::spawn(move || {
-                    handle_connection(stream, clients_clone);
+                    handle_connection(stream, clients_clone, conn_clone);
                 });
             }
             Err(e) => {
@@ -100,3 +143,16 @@ fn main() -> std::io::Result<()> {
     }
     Ok(())
 }
+
+
+/*
+
+Thread 1: conn_clone1 ----\
+                           \
+Thread 2: conn_clone2 -------> [Same Database in Memory]
+                           /
+Thread 3: conn_clone3 ----/
+
+How Arc cloning works
+
+*/
