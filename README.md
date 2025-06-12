@@ -3,15 +3,13 @@
 
 
 #### Usage
-Very janky, and has limited error handling
-The server needs to be initialised first, then the client can connect
+Has decent error handling but might crash due to unforseen edge cases
 
-1. 
-```
-cargo run --bin server
-```
 
-2. 
-```
-cargo run --bin client
-```
+launch a server
+```cargo run --bin server```
+
+Then launch 2 clients
+```cargo run --bin client``` x 2 in seperate consoles
+
+All messages are stored on a local database.
