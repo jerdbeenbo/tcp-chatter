@@ -34,6 +34,7 @@ fn handle_connection(
                     println!("Client disconnected");
                     break;
                 } else {
+
                     //got data (message from another client)
                     //store message in database
                     //relay message to other connected user
@@ -93,10 +94,10 @@ fn handle_connection(
                 for i in 0..client_list.len() {
                     if client_list[i].peer_addr().unwrap() == peer_addr {
                         client_list.remove(i);
-                        break;  //This is important!
+                        break; //This is important!
                     }
                 }
-                
+
                 println!("Clients list size is now: {:?}", client_list.len());
 
                 println!("Client disconnected {:?}", peer_addr);
@@ -105,6 +106,22 @@ fn handle_connection(
         }
     }
 }
+
+fn store_metadata(
+    conn: &Connection,
+    sender: &str,
+    content: &str,
+    timestamp: chrono::DateTime<chrono::Utc>,
+) -> Result<()> {
+    //attempt to store the message in the table
+    conn.execute(
+        "INSERT INTO messages (sender, content, timestamp) VALUES (?1, ?2, ?3)",
+        (sender, content, timestamp.to_string()),
+    )?;
+
+    Ok(())
+}
+
 
 fn store_message(
     conn: &Connection,
@@ -124,12 +141,21 @@ fn store_message(
 fn handle_db() -> Result<Connection, rusqlite::Error> {
     let conn: Connection = Connection::open("chatlog.db")?;
     conn.execute(
+        "CREATE TABLE IF NOT EXISTS user (
+        senderADR TEXT PRIMARY KEY,
+        username TEXT
+    )",
+        [],
+    )?;
+
+    conn.execute(
         "CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY,
-            sender TEXT NOT NULL,
-            content TEXT NOT NULL,
-            timestamp TEXT NOT NULL 
-        )",
+        id INTEGER PRIMARY KEY,
+        senderADR TEXT NOT NULL,
+        content TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        FOREIGN KEY (senderADR) REFERENCES user(senderADR)
+    )",
         [],
     )?;
 

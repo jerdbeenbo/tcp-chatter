@@ -29,12 +29,29 @@ fn handle_error(err: io::Error) {
     }
 }
 
-///Sends the message that was collected from the command line to the server
 fn send_message(msg: String, tcp: &mut TcpStream) -> std::io::Result<()> {
-    //Send the msg as bytes
-    tcp.write_all((msg + "\n").as_bytes())?;
-
+    let formatted = format!("MSG:{}\n", msg.trim());
+    tcp.write_all(formatted.as_bytes())?;
+    tcp.flush()?;
     Ok(())
+}
+
+fn send_session_metadata(name: String, tcp: &mut TcpStream) -> std::io::Result<()> {
+    let formatted = format!("META:{}\n", name.trim());
+    tcp.write_all(formatted.as_bytes())?;
+    tcp.flush()?;
+    Ok(())
+}
+
+fn get_session_credentials() -> String {
+    let mut user_input = String::new();
+
+    println!("Please enter a name for this session: ");
+    io::stdin()
+        .read_line(&mut user_input)
+        .expect("Failed to read line");
+
+    user_input
 }
 
 ///Handles connection to the server, and listen for msg from server
@@ -44,11 +61,21 @@ fn handle_connecting(reciever: Receiver<String>) {
     let mut tcp: TcpStream;
     let mut _continue = false;
 
+    //prompt user to set up credentials
+    let session_credentials = get_session_credentials();
+
     //check to see if connection was successful
     match stream {
         Ok(_) => {
             //It is safe to unwrap value
             tcp = stream.unwrap();
+
+
+            //send metadata to server to store user information inside of database
+            match send_session_metadata(session_credentials, &mut tcp) {
+                Ok(_) => println!("-- Credentials registered for this session --"),
+                Err(err) => handle_error(err),
+            }
 
             //create thread for handling listening from server now that connection is confirmed
             match tcp.try_clone() {
@@ -62,15 +89,15 @@ fn handle_connecting(reciever: Receiver<String>) {
             }
 
             //listen for input from the user (to send to the server)
-            listen_for_input(&mut tcp, reciever);
+            listen_for_user_input(&mut tcp, reciever);
         }
         //connection was unsuccessful
         Err(val) => handle_error(val),
     }
 }
 
-fn listen_for_input(tcp: &mut TcpStream, reciever: Receiver<String>) {
-    //listen_for_input for user input
+fn listen_for_user_input(tcp: &mut TcpStream, reciever: Receiver<String>) {
+    //listen_for_user_input for user input
     while true {
         let msg = reciever.recv();
 
@@ -125,10 +152,10 @@ fn listen_server(tcp: &mut TcpStream) {
     }
 }
 
-///Spawns a thread to listen_for_input for messages from the server
-///listen_for_inputs for user input to send messages to the server on main thread
+///Spawns a thread to listen_for_user_input for messages from the server
+///listen_for_user_inputs for user input to send messages to the server on main thread
 fn main() {
-    //connecting to the server and listen_for_inputing for messages on a seperate thread
+    //connecting to the server and listen_for_user_inputing for messages on a seperate thread
     let (sender, reciever) = channel::<String>();
 
     thread::spawn(move || {
