@@ -34,16 +34,45 @@ fn handle_connection(
                     println!("Client disconnected");
                     break;
                 } else {
+                    if line.trim().starts_with("META:") {
+
+                        println!("line starts with meta");
+
+                        //store the data in a database
+                        let db_conn = conn.lock().unwrap();
+                        let timestamp = chrono::Utc::now();
+
+                        let content = line.trim().strip_prefix("META:").unwrap();
+
+                        match store_metadata(
+                            &db_conn,
+                            &peer_addr.to_string(),
+                            content,
+                            timestamp,
+                        ) {
+                            Ok(_) => {
+                                //store message
+                                println!("Metadata for {:?} stored", peer_addr);
+                            }
+                            Err(e) => println!("{}", e),
+                        }
+
+                        continue;
+                    }
 
                     //got data (message from another client)
                     //store message in database
                     //relay message to other connected user
-                    println!("Message from {:?}.\nMessage: {}", stream_clone, line.trim());
+                    let content = line.trim().strip_prefix("MSG:").unwrap();
+
+                    println!("message {}", content);
+
+                    println!("Message from {:?}.\nMessage: {}", stream_clone, content);
 
                     //store the data in a database
                     let db_conn = conn.lock().unwrap();
                     let timestamp = chrono::Utc::now();
-                    match store_message(&db_conn, &peer_addr.to_string(), line.trim(), timestamp) {
+                    match store_message(&db_conn, &peer_addr.to_string(), content, timestamp) {
                         Ok(_) => {
                             //store message
                             println!("Message stored");
@@ -56,8 +85,6 @@ fn handle_connection(
                     let mut client_list = clients_clone.lock().unwrap();
 
                     let client_amt = client_list.len();
-
-                    println!("{:?}", client_amt);
 
                     //only one person connencted (let them know no one is getting the messages)
                     if client_amt == 1 {
@@ -115,13 +142,12 @@ fn store_metadata(
 ) -> Result<()> {
     //attempt to store the message in the table
     conn.execute(
-        "INSERT INTO messages (sender, content, timestamp) VALUES (?1, ?2, ?3)",
+        "INSERT INTO user (senderADR, username, timestamp) VALUES (?1, ?2, ?3)",
         (sender, content, timestamp.to_string()),
     )?;
 
     Ok(())
 }
-
 
 fn store_message(
     conn: &Connection,
@@ -131,7 +157,7 @@ fn store_message(
 ) -> Result<()> {
     //attempt to store the message in the table
     conn.execute(
-        "INSERT INTO messages (sender, content, timestamp) VALUES (?1, ?2, ?3)",
+        "INSERT INTO messages (senderADR, content, timestamp) VALUES (?1, ?2, ?3)",
         (sender, content, timestamp.to_string()),
     )?;
 
@@ -143,7 +169,8 @@ fn handle_db() -> Result<Connection, rusqlite::Error> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS user (
         senderADR TEXT PRIMARY KEY,
-        username TEXT
+        username TEXT,
+        timestamp TEXT NOT NULL
     )",
         [],
     )?;
