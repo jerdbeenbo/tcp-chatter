@@ -13,7 +13,11 @@ use std::thread;
 
 ///Handles a client connection to the mutual exhange
 ///Connects a user to the database
-fn handle_connection(mut stream: TcpStream, clients_clone: Arc<Mutex<Vec<TcpStream>>>, conn: Arc<Mutex<Connection>>) {
+fn handle_connection(
+    mut stream: TcpStream,
+    clients_clone: Arc<Mutex<Vec<TcpStream>>>,
+    conn: Arc<Mutex<Connection>>,
+) {
     println!("Client connected on: {:?}", stream);
 
     let stream_clone = stream.try_clone(); //for printing
@@ -38,12 +42,7 @@ fn handle_connection(mut stream: TcpStream, clients_clone: Arc<Mutex<Vec<TcpStre
                     //store the data in a database
                     let db_conn = conn.lock().unwrap();
                     let timestamp = chrono::Utc::now();
-                    match store_message(
-                        &db_conn,
-                        &peer_addr.to_string(),
-                        line.trim(),
-                        timestamp,
-                    ) {
+                    match store_message(&db_conn, &peer_addr.to_string(), line.trim(), timestamp) {
                         Ok(_) => {
                             //store message
                             println!("Message stored");
@@ -56,6 +55,8 @@ fn handle_connection(mut stream: TcpStream, clients_clone: Arc<Mutex<Vec<TcpStre
                     let mut client_list = clients_clone.lock().unwrap();
 
                     let client_amt = client_list.len();
+
+                    println!("{:?}", client_amt);
 
                     //only one person connencted (let them know no one is getting the messages)
                     if client_amt == 1 {
@@ -84,17 +85,38 @@ fn handle_connection(mut stream: TcpStream, clients_clone: Arc<Mutex<Vec<TcpStre
                 }
             }
             Err(_) => {
-                println!("Client disconnected");
+                //Disconnect the client gracefully
+
+                //specify immutable list of current clients list
+                let mut client_list = clients_clone.lock().unwrap();
+
+                for i in 0..client_list.len() {
+                    if client_list[i].peer_addr().unwrap() == peer_addr {
+                        client_list.remove(i);
+                        break;  //This is important!
+                    }
+                }
+                
+                println!("Clients list size is now: {:?}", client_list.len());
+
+                println!("Client disconnected {:?}", peer_addr);
                 break;
             }
         }
     }
 }
 
-fn store_message(conn: &Connection, sender: &str, content: &str, timestamp: chrono::DateTime<chrono::Utc>) -> Result<()> {
-
+fn store_message(
+    conn: &Connection,
+    sender: &str,
+    content: &str,
+    timestamp: chrono::DateTime<chrono::Utc>,
+) -> Result<()> {
     //attempt to store the message in the table
-    conn.execute("INSERT INTO messages (sender, content, timestamp) VALUES (?1, ?2, ?3)", (sender, content, timestamp.to_string()))?;
+    conn.execute(
+        "INSERT INTO messages (sender, content, timestamp) VALUES (?1, ?2, ?3)",
+        (sender, content, timestamp.to_string()),
+    )?;
 
     Ok(())
 }
@@ -111,7 +133,7 @@ fn handle_db() -> Result<Connection, rusqlite::Error> {
         [],
     )?;
 
-    Ok(conn)       //Return the database connection
+    Ok(conn) //Return the database connection
 }
 
 fn main() -> std::io::Result<()> {
@@ -142,7 +164,6 @@ fn main() -> std::io::Result<()> {
     }
     Ok(())
 }
-
 
 /*
 
