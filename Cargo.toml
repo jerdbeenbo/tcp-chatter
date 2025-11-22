@@ -17,9 +17,13 @@ path = "src/server.rs"
 
 [dependencies]
 axum = "0.8.7"
+axum-tungstenite = "0.3.0"
 chrono = "0.4.42"
+futures-util = "0.3.31"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 serde = "1.0.228"
 tokio = { version = "1.48.0", features = ["full"] }
+tower = "0.5.2"
+tracing-subscriber = "0.3.20"
 
 
